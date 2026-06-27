@@ -1,0 +1,6 @@
+ProductID,SKU,Name,Category,StockLevel,ReorderPoint,UnitPrice,CostPrice,SupplierID
+P001,SKU-LAP-001,Enterprise Laptop,Electronics,25,5,799.99,500.00,SUP001
+P002,SKU-MOU-002,Wireless Mouse,Accessories,150,15,19.99,8.50,SUP002
+P003,SKU-MON-003,4K Monitor,Electronics,8,3,1200.00,850.00,SUP001
+P004,SKU-KEY-004,Mechanical Keyboard,Accessories,45,10,45.50,22.00,SUP002
+P005,SKU-CAB-005,USB-C Cable,Accessories,200,30,12.50,4.00,SUP003

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Predictive Modeling - Enterprise Analytics{% endblock %}
+{% block page_title %}Machine Learning Forecasts{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 animate-fade-in">
+
+    <div class="row g-4">
+        <!-- Model Training & Status -->
+        <div class="col-lg-4">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-3">Model Engine Status</h5>
+                
+                <div class="mb-4">
+                    <h6 class="fw-semibold text-muted small uppercase">Linear Regression (ML)</h6>
+                    {% if ml_exists %}
+                        <div class="d-flex align-items-center gap-2 text-success my-2">
+                            <i class="bi bi-patch-check-fill fs-5"></i>
+                            <span>Trained & Ready</span>
+                        </div>
+                        <div class="p-2 border rounded bg-light-subtle small">
+                            <strong>R² Score:</strong> {{ "{:.2%}".format(ml_metrics.r2) }}<br>
+                            <strong>MSE:</strong> {{ "{:,.2f}".format(ml_metrics.mse) }}
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2 text-warning my-2">
+                            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                            <span>Model Untrained</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="fw-semibold text-muted small uppercase">Multi-Layer Neural Network (DL)</h6>
+                    {% if dl_exists %}
+                        <div class="d-flex align-items-center gap-2 text-success my-2">
+                            <i class="bi bi-patch-check-fill fs-5"></i>
+                            <span>Trained & Ready</span>
+                        </div>
+                        <div class="p-2 border rounded bg-light-subtle small">
+                            <strong>R² Score:</strong> {{ "{:.2%}".format(dl_metrics.r2) }}<br>
+                            <strong>MSE:</strong> {{ "{:,.2f}".format(dl_metrics.mse) }}
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2 text-warning my-2">
+                            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                            <span>Model Untrained</span>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <form action="{{ url_for('ml.train') }}" method="POST">
+                    <button type="submit" class="btn btn-primary-gradient w-100 py-2">
+                        <i class="bi bi-arrow-repeat"></i> Train / Re-optimize Engine
+                    </button>
+                </form>
+                <small class="text-secondary d-block mt-2 text-center">Uses SQLite sales history, cleaning with Pandas and fitting Scikit-Learn pipelines.</small>
+            </div>
+        </div>
+
+        <!-- Single Forecast Simulator -->
+        <div class="col-lg-8">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Interactive Demand & Price Simulator</h5>
+                
+                <form id="singlePredictForm" onsubmit="predictProductSale(event)">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Select Product</label>
+                            <select name="product_id" class="form-select" required>
+                                {% for p in products %}
+                                    <option value="{{ p.id }}">{{ p.name }} (Current Price: ${{ p.unit_price }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Simulate Qty</label>
+                            <input type="number" name="quantity" class="form-control" min="1" value="10" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Target Month</label>
+                            <select name="month" class="form-select">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6" selected>June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12 d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="model_type" id="predictML" value="ml" checked>
+                                <label class="form-check-label" for="predictML">Linear Regression Model</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="model_type" id="predictDL" value="dl">
+                                <label class="form-check-label" for="predictDL">Neural Network MLP Model</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-outline-primary py-2 px-4">
+                        <i class="bi bi-play-fill"></i> Run Simulation
+                    </button>
+                </form>
+
+                <!-- Result Card -->
+                <div class="mt-4 p-4 border rounded-4 bg-light-subtle d-none" id="predictionResult">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-secondary uppercase small mb-1">Estimated Sales Invoice Valuation</h6>
+                            <h3 class="fw-bold mb-0 text-success" id="predVal"></h3>
+                            <span class="text-muted small">Model: <strong id="predModel"></strong></span>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary-subtle text-primary-emphasis mb-1">Forecast Item</span>
+                            <p class="mb-0 fw-semibold text-truncate max-width-200" id="predProduct"></p>
+                            <small class="text-muted">Quantity: <strong id="predQty"></strong> items</small>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Prediction Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="analytics-panel">
+                <h5 class="fw-bold mb-3">Batch Estimator (CSV/Excel Upload)</h5>
+                <p class="text-muted small">Upload a table file with headers: <code>quantity</code>, <code>unit_price</code>, <code>category</code>, <code>month</code>. The ML pipeline will compute predictions for all records.</p>
+                
+                <form action="{{ url_for('ml.upload_predict') }}" method="POST" enctype="multipart/form-data" class="d-flex gap-3 align-items-center mb-4">
+                    <div class="flex-grow-1">
+                        <input type="file" name="file" class="form-control" accept=".csv, .xlsx" required>
+                    </div>
+                    <div>
+                        <select name="model_type" class="form-select">
+                            <option value="ml">Linear Regression</option>
+                            <option value="dl">Neural Network</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary-gradient px-4">
+                        <i class="bi bi-upload"></i> Process Batch
+                    </button>
+                </form>
+
+                {% if batch_results %}
+                    <h6 class="fw-bold mb-3 text-gradient">Batch Forecast Results</h6>
+                    <div class="table-responsive border rounded-3 bg-white">
+                        {{ batch_results | safe }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

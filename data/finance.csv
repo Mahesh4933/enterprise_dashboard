@@ -1,0 +1,11 @@
+TransactionID,Date,Category,Type,Amount,Description
+T001,2026-06-01,Sales Revenue,Revenue,1599.98,Payment for Invoice S001
+T002,2026-06-02,Office Rent,Expense,1200.00,June Rent payment
+T003,2026-06-03,Sales Revenue,Revenue,1200.00,Payment for Invoice S003
+T004,2026-06-04,Utilities,Expense,250.45,Electricity and Internet bills
+T005,2026-06-05,Sales Revenue,Revenue,799.99,Payment for Invoice S005
+T006,2026-06-06,Marketing,Expense,500.00,Google Ads campaign
+T007,2026-06-07,Sales Revenue,Revenue,39.98,Payment for Invoice S007
+T008,2026-06-09,Sales Revenue,Revenue,2400.00,Payment for Invoice S009
+T009,2026-06-10,Software Licenses,Expense,150.00,SaaS tools subscription
+T010,2026-06-10,Sales Revenue,Revenue,50.00,Payment for Invoice S010

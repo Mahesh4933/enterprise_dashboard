@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Home - Enterprise Analytics{% endblock %}
+{% block page_title %}Enterprise Dashboard{% endblock %}
+
+{% block unread_badge %}
+    {% set unread_count = notifications | selectattr('is_read', 'equalto', false) | list | length %}
+    {% if unread_count > 0 %}
+        <span class="notification-badge">{{ unread_count }}</span>
+    {% endif %}
+{% endblock %}
+
+{% block notifications_list %}
+    {% if notifications %}
+        {% for n in notifications %}
+            <li class="p-2 border-bottom">
+                <div class="d-flex justify-content-between">
+                    <span class="fw-semibold {% if not n.is_read %}text-primary{% endif %}" style="font-size: 0.85rem;">{{ n.title }}</span>
+                    <small class="text-muted" style="font-size: 0.7rem;">{{ n.created_at.strftime('%H:%M') }}</small>
+                </div>
+                <p class="mb-0 text-secondary" style="font-size: 0.8rem;">{{ n.description }}</p>
+            </li>
+        {% endfor %}
+    {% else %}
+        <li class="text-muted text-center py-2">No alerts</li>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    <!-- KPI Grid -->
+    <div class="dashboard-grid animate-fade-in">
+        
+        <!-- Total Revenue -->
+        <div class="kpi-card">
+            <div class="kpi-icon bg-primary">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <p class="text-secondary mb-1">Total Sales Revenue</p>
+            <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_sales) }}</h3>
+        </div>
+
+        <!-- Total Profit -->
+        <div class="kpi-card secondary">
+            <div class="kpi-icon bg-success">
+                <i class="bi bi-wallet2"></i>
+            </div>
+            <p class="text-secondary mb-1">Net Operating Profit</p>
+            <h3 class="fw-bold mb-0">${{ "{:,.2f}".format(total_profit) }}</h3>
+        </div>
+
+        <!-- Active Customers -->
+        <div class="kpi-card accent">
+            <div class="kpi-icon bg-warning">
+                <i class="bi bi-people"></i>
+            </div>
+            <p class="text-secondary mb-1">Active Customers</p>
+            <h3 class="fw-bold mb-0">{{ customers_count }}</h3>
+        </div>
+
+        <!-- Inventory Alert KPI -->
+        <div class="kpi-card {% if low_stock_count > 0 %}danger{% else %}secondary{% endif %}">
+            <div class="kpi-icon {% if low_stock_count > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <p class="text-secondary mb-1">Low Stock Products</p>
+            <h3 class="fw-bold mb-0">{{ low_stock_count }} Items</h3>
+        </div>
+
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="row mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="col-xl-8 col-lg-7 mb-4 mb-lg-0">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Monthly Sales Trend</h5>
+                <div style="height: 320px;">
+                    <canvas id="salesTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-lg-5">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Product Category Share</h5>
+                <div style="height: 320px;">
+                    <canvas id="categoryShareChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 & Summary Insights -->
+    <div class="row mb-4 animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="col-lg-6 mb-4 mb-lg-0">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Top 5 Products by Revenue</h5>
+                <div style="height: 300px;">
+                    <canvas id="productSalesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Business Analytics & Insights</h5>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded-3 bg-light-subtle">
+                            <small class="text-secondary">Average Invoice Value</small>
+                            <h4 class="fw-bold mt-1 mb-0">${{ "{:,.2f}".format(avg_sale) }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded-3 bg-light-subtle">
+                            <small class="text-secondary">Top Product Category</small>
+                            <h4 class="fw-bold mt-1 mb-0 text-truncate">{{ top_product }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded-3 bg-light-subtle">
+                            <small class="text-secondary">High-Value Client</small>
+                            <h4 class="fw-bold mt-1 mb-0 text-truncate">{{ top_customer }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded-3 bg-light-subtle">
+                            <small class="text-secondary">Procurement Expenses</small>
+                            <h4 class="fw-bold mt-1 mb-0 text-danger">${{ "{:,.2f}".format(total_expense) }}</h4>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-3 border rounded-3 bg-primary-subtle border-primary-subtle text-primary-emphasis">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-info-circle-fill fs-5"></i>
+                        <div>
+                            <h6 class="fw-bold mb-1">Operational Health Note</h6>
+                            <p class="mb-0 small">
+                                {% if low_stock_count > 0 %}
+                                    Warning: There are <strong>{{ low_stock_count }}</strong> items currently low on stock levels. Please review Purchase Orders in the Inventory module.
+                                {% else %}
+                                    Excellent! All products are well stocked above their reorder thresholds. No immediate action is required.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3: Inventory alerts comparison -->
+    <div class="row mb-4 animate-fade-in" style="animation-delay: 0.3s;">
+        <div class="col-12 col-xl-4 mb-4 mb-xl-0">
+            <div class="analytics-panel h-100">
+                <h5 class="fw-bold mb-4">Stock Levels vs Reorder Point</h5>
+                <div style="height: 280px;">
+                    <canvas id="inventoryAlertsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Orders table -->
+        <div class="col-12 col-xl-8">
+            <div class="analytics-panel h-100">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Recent Sales Invoices</h5>
+                    <a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-outline-primary rounded-pill">View All Sales</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 custom-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice Code</th>
+                                <th>Client Name</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_sales %}
+                                {% for o in recent_sales %}
+                                    <tr onclick="viewOrderDetails({{ o.id }})" style="cursor: pointer;">
+                                        <td><code>{{ o.order_code }}</code></td>
+                                        <td>{{ o.customer.name }}</td>
+                                        <td>{{ o.order_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill {% if o.status == 'Completed' %}bg-success-subtle text-success{% elif o.status == 'Pending' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">
+                                                {{ o.status }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-semibold">${{ "{:,.2f}".format(o.total_amount) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No recent sales records.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Sales Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="orderDetailsModalLabel">Invoice <span id="modalOrderCode"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Client Name</small>
+                        <h6 class="fw-bold mt-1" id="modalCustomer"></h6>
+                    </div>
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Invoice Date</small>
+                        <h6 class="fw-bold mt-1" id="modalDate"></h6>
+                    </div>
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Status</small>
+                        <div>
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis" id="modalStatus"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h6 class="fw-bold mb-3 border-bottom pb-2">Line Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="text-end mt-4">
+                    <h5 class="fw-bold">Total: <span class="text-gradient" id="modalTotal"></span></h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Finance Logs - Enterprise Analytics{% endblock %}
+{% block page_title %}Financial Ledger{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 animate-fade-in">
+
+    <!-- Financial KPI Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="kpi-card">
+                <div class="kpi-icon bg-success">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <p class="text-secondary mb-1">Total Revenue</p>
+                <h4 class="fw-bold mb-0 text-success">${{ "{:,.2f}".format(total_revenue) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card danger">
+                <div class="kpi-icon bg-danger">
+                    <i class="bi bi-graph-down"></i>
+                </div>
+                <p class="text-secondary mb-1">Total Expenditures</p>
+                <h4 class="fw-bold mb-0 text-danger">${{ "{:,.2f}".format(total_expense) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card {% if net_profit >= 0 %}secondary{% else %}danger{% endif %}">
+                <div class="kpi-icon {% if net_profit >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                    <i class="bi bi-wallet-fill"></i>
+                </div>
+                <p class="text-secondary mb-1">Net Operating Cash Flow</p>
+                <h4 class="fw-bold mb-0 {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">${{ "{:,.2f}".format(net_profit) }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions and Search -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="search-wrapper flex-grow-1 max-width-400 me-3">
+            <input type="text" id="financeSearchInput" class="form-control" placeholder="Search transactions, category..." onkeyup="searchTable('financeSearchInput', 'financeTable')">
+        </div>
+        <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addFinanceModal">
+            <i class="bi bi-plus-lg"></i> Log Transaction
+        </button>
+    </div>
+
+    <!-- Financial Table -->
+    <div class="analytics-panel">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 custom-table" id="financeTable">
+                <thead>
+                    <tr>
+                        <th>Transaction Code</th>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Ledger Type</th>
+                        <th class="text-end">Amount</th>
+                        <th>Description</th>
+                        <th class="text-center" style="width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if records %}
+                        {% for r in records %}
+                            <tr>
+                                <td><code>{{ r.transaction_code }}</code></td>
+                                <td>{{ r.date.strftime('%Y-%m-%d') }}</td>
+                                <td class="fw-semibold">{{ r.category }}</td>
+                                <td>
+                                    <span class="badge rounded-pill {% if r.type == 'Revenue' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                                        {{ r.type }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold {% if r.type == 'Revenue' %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ "{:,.2f}".format(r.amount) }}
+                                </td>
+                                <td class="text-secondary small">{{ r.description or 'N/A' }}</td>
+                                <td class="text-center">
+                                    <form action="{{ url_for('finance.delete', id=r.id) }}" method="POST" onsubmit="return confirm('Delete transaction {{ r.transaction_code }}?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">No ledger records found. Click "Log Transaction" to create one.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Finance Modal -->
+<div class="modal fade" id="addFinanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Log Financial Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('finance.add') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Transaction Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ datetime.utcnow().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Category</label>
+                        <select name="category" class="form-select" required>
+                            <option value="Sales Revenue">Sales Revenue</option>
+                            <option value="Inventory Cost">Inventory Cost</option>
+                            <option value="Office Rent">Office Rent</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Software Licenses">Software Licenses</option>
+                            <option value="Salaries & Payroll">Salaries & Payroll</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Transaction Type</label>
+                        <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type" id="typeRevenue" value="Revenue" checked>
+                                <label class="form-check-label" for="typeRevenue">Revenue (Income)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type" id="typeExpense" value="Expense">
+                                <label class="form-check-label" for="typeExpense">Expense (Outflow)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Amount ($)</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Description / Reference</label>
+                        <input type="text" name="description" class="form-control" placeholder="Optional notes">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Log Transaction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

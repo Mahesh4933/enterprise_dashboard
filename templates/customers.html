@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Customers - Enterprise Analytics{% endblock %}
+{% block page_title %}Customer Accounts{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 animate-fade-in">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="search-wrapper flex-grow-1 max-width-400 me-3">
+            <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0 border-secondary-subtle">
+                    <i class="bi bi-search text-muted"></i>
+                </span>
+                <input type="text" id="customersSearchInput" class="form-control border-start-0 border-secondary-subtle" placeholder="Search customer records..." onkeyup="searchTable('customersSearchInput', 'customersTable')">
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+            <i class="bi bi-person-plus-fill"></i> Add Customer Profile
+        </button>
+    </div>
+
+    <!-- Customers Table -->
+    <div class="analytics-panel">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 custom-table" id="customersTable">
+                <thead>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Region</th>
+                        <th>Status</th>
+                        <th>Join Date</th>
+                        <th class="text-center" style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if customers %}
+                        {% for c in customers %}
+                            <tr>
+                                <td><code>{{ c.customer_code }}</code></td>
+                                <td class="fw-semibold">{{ c.name }}</td>
+                                <td>{{ c.email }}</td>
+                                <td>{{ c.phone or 'N/A' }}</td>
+                                <td>{{ c.region or 'N/A' }}</td>
+                                <td>
+                                    <span class="badge rounded-pill {% if c.status == 'Active' %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary-emphasis{% endif %}">
+                                        {{ c.status }}
+                                    </span>
+                                </td>
+                                <td>{{ c.join_date.strftime('%Y-%m-%d') }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <!-- Edit Modal Button -->
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ c.id }}">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <!-- Delete Action -->
+                                        <form action="{{ url_for('customers.delete', id=c.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete client {{ c.name }}?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Edit Customer Modal -->
+                            <div class="modal fade" id="editModal{{ c.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title fw-bold">Edit Customer: {{ c.name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="{{ url_for('customers.edit', id=c.id) }}" method="POST">
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label for="name" class="form-label text-muted">Customer/Company Name</label>
+                                                    <input type="text" name="name" class="form-control" value="{{ c.name }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="email" class="form-label text-muted">Contact Email</label>
+                                                    <input type="email" name="email" class="form-control" value="{{ c.email }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="phone" class="form-label text-muted">Contact Phone</label>
+                                                    <input type="text" name="phone" class="form-control" value="{{ c.phone or '' }}">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="region" class="form-label text-muted">Sales Region</label>
+                                                    <input type="text" name="region" class="form-control" value="{{ c.region or '' }}">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="status" class="form-label text-muted">Status</label>
+                                                    <select name="status" class="form-select">
+                                                        <option value="Active" {% if c.status == 'Active' %}selected{% endif %}>Active</option>
+                                                        <option value="Inactive" {% if c.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary-gradient">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">No Customer records found. Click "Add Customer Profile" to add one.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">New Customer Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('customers.add') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label text-muted">Customer/Company Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Acme Inc." required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label text-muted">Contact Email</label>
+                        <input type="email" name="email" class="form-control" placeholder="billing@acme.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label text-muted">Contact Phone</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+1-555-0100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="region" class="form-label text-muted">Sales Region</label>
+                        <select name="region" class="form-select">
+                            <option value="North">North</option>
+                            <option value="South">South</option>
+                            <option value="East">East</option>
+                            <option value="West">West</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="status" class="form-label text-muted">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

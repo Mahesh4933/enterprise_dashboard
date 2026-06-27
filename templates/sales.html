@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Orders - Enterprise Analytics{% endblock %}
+{% block page_title %}Sales Invoice Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 animate-fade-in">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="search-wrapper flex-grow-1 max-width-400 me-3">
+            <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0 border-secondary-subtle">
+                    <i class="bi bi-search text-muted"></i>
+                </span>
+                <input type="text" id="salesSearchInput" class="form-control border-start-0 border-secondary-subtle" placeholder="Search invoices, clients, dates..." onkeyup="searchTable('salesSearchInput', 'salesTable')">
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addSalesModal">
+            <i class="bi bi-plus-lg"></i> Create Sales Invoice
+        </button>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="analytics-panel">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 custom-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th>Invoice Code</th>
+                        <th>Customer</th>
+                        <th>Order Date</th>
+                        <th>Status</th>
+                        <th class="text-end">Total Amount</th>
+                        <th class="text-center" style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if orders %}
+                        {% for o in orders %}
+                            <tr>
+                                <td onclick="viewOrderDetails({{ o.id }})" style="cursor: pointer;"><code>{{ o.order_code }}</code></td>
+                                <td onclick="viewOrderDetails({{ o.id }})" style="cursor: pointer;">{{ o.customer.name }}</td>
+                                <td>{{ o.order_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <span class="badge rounded-pill {% if o.status == 'Completed' %}bg-success-subtle text-success{% elif o.status == 'Pending' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">
+                                        {{ o.status }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-semibold">${{ "{:,.2f}".format(o.total_amount) }}</td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <!-- Edit Status Button -->
+                                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ o.id }}">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <!-- Delete Button -->
+                                        <form action="{{ url_for('sales.delete', id=o.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete invoice {{ o.order_code }}?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Edit Modal -->
+                            <div class="modal fade" id="editModal{{ o.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title fw-bold">Update Invoice Status</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form action="{{ url_for('sales.edit', id=o.id) }}" method="POST">
+                                            <div class="modal-body">
+                                                <p>Invoice <strong>{{ o.order_code }}</strong> - Current Total: ${{ "{:,.2f}".format(o.total_amount) }}</p>
+                                                <div class="mb-3">
+                                                    <label for="status" class="form-label text-muted">Update Status</label>
+                                                    <select name="status" class="form-select">
+                                                        <option value="Completed" {% if o.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                                        <option value="Pending" {% if o.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                        <option value="Cancelled" {% if o.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                                    </select>
+                                                </div>
+                                                <small class="text-muted">Setting status to "Completed" automatically adjusts associated stock levels and updates financial revenue registers.</small>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-primary-gradient">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">No Sales Invoices found. Click "Create Sales Invoice" to add one.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Sales Invoice Modal -->
+<div class="modal fade" id="addSalesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">New Sales Invoice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('sales.add') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label for="customer_id" class="form-label text-muted">Customer Account</label>
+                            <select name="customer_id" id="customer_id" class="form-select" required>
+                                <option value="">Select Customer...</option>
+                                {% for c in customers %}
+                                    <option value="{{ c.id }}">{{ c.name }} ({{ c.customer_code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="order_date" class="form-label text-muted">Invoice Date</label>
+                            <input type="date" name="order_date" id="order_date" class="form-control" value="{{ datetime.utcnow().strftime('%Y-%m-%d') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status" class="form-label text-muted">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="Completed">Completed</option>
+                                <option value="Pending">Pending</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">Line Items</h6>
+                    <div id="product-rows-container">
+                        <div class="row g-2 mb-2 product-row">
+                            <div class="col-md-8">
+                                <select name="products[]" class="form-select" required>
+                                    <option value="">Select Product...</option>
+                                    {% for p in products %}
+                                        <option value="{{ p.id }}">{{ p.name }} (SKU: {{ p.sku }}) - ${{ p.unit_price }} (Stock: {{ p.stock_level }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="quantities[]" class="form-control" min="1" placeholder="Quantity" value="1" required>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-danger w-100 remove-row-btn" onclick="removeProductRow(this)"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addProductRow()">
+                        <i class="bi bi-plus-lg"></i> Add Item Line
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Generate Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Order Details Modal -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Invoice <span id="modalOrderCode"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Client Name</small>
+                        <h6 class="fw-bold mt-1" id="modalCustomer"></h6>
+                    </div>
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Invoice Date</small>
+                        <h6 class="fw-bold mt-1" id="modalDate"></h6>
+                    </div>
+                    <div class="col-sm-4">
+                        <small class="text-secondary">Status</small>
+                        <div>
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis" id="modalStatus"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h6 class="fw-bold mb-3 border-bottom pb-2">Line Items</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsBody">
+                            <!-- Loaded via AJAX in api.js -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="text-end mt-4">
+                    <h5 class="fw-bold">Total Amount: <span class="text-gradient" id="modalTotal"></span></h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function addProductRow() {
+        const container = document.getElementById('product-rows-container');
+        const firstRow = container.querySelector('.product-row');
+        const newRow = firstRow.cloneNode(true);
+        
+        // Reset selections
+        newRow.querySelector('select').selectedIndex = 0;
+        newRow.querySelector('input').value = 1;
+        
+        container.appendChild(newRow);
+    }
+    
+    function removeProductRow(button) {
+        const container = document.getElementById('product-rows-container');
+        if (container.querySelectorAll('.product-row').length > 1) {
+            button.closest('.product-row').remove();
+        } else {
+            alert("At least one product line is required.");
+        }
+    }
+</script>
+{% endblock %}

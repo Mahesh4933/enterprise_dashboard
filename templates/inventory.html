@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory & Purchase Orders - Enterprise Analytics{% endblock %}
+{% block page_title %}Inventory Operations{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 animate-fade-in">
+
+    <!-- Tab navigation -->
+    <ul class="nav nav-pills mb-4" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="products-tab" data-bs-toggle="pill" data-bs-target="#pills-products" type="button" role="tab">
+                <i class="bi bi-boxes"></i> Product Catalog
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="suppliers-tab" data-bs-toggle="pill" data-bs-target="#pills-suppliers" type="button" role="tab">
+                <i class="bi bi-truck"></i> Suppliers
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="purchase-tab" data-bs-toggle="pill" data-bs-target="#pills-purchase" type="button" role="tab">
+                <i class="bi bi-cart-check-fill"></i> Purchase Orders
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="pills-tabContent">
+        
+        <!-- Tab 1: Product Catalog -->
+        <div class="tab-pane fade show active" id="pills-products" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="search-wrapper flex-grow-1 max-width-400 me-3">
+                    <input type="text" id="productSearchInput" class="form-control" placeholder="Search catalog..." onkeyup="searchTable('productSearchInput', 'productsTable')">
+                </div>
+                <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                    <i class="bi bi-plus-lg"></i> Add New Product
+                </button>
+            </div>
+            
+            <div class="analytics-panel">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 custom-table" id="productsTable">
+                        <thead>
+                            <tr>
+                                <th>Item Code</th>
+                                <th>SKU</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Reorder Limit</th>
+                                <th>Selling Price</th>
+                                <th>Cost Price</th>
+                                <th class="text-center" style="width: 150px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if products %}
+                                {% for p in products %}
+                                    <tr class="{% if p.stock_level <= p.reorder_point %}table-danger-subtle{% endif %}">
+                                        <td><code>{{ p.product_code }}</code></td>
+                                        <td><code>{{ p.sku }}</code></td>
+                                        <td class="fw-semibold">{{ p.name }}</td>
+                                        <td>{{ p.category }}</td>
+                                        <td class="fw-bold {% if p.stock_level <= p.reorder_point %}text-danger{% else %}text-success{% endif %}">
+                                            {{ p.stock_level }}
+                                        </td>
+                                        <td>{{ p.reorder_point }}</td>
+                                        <td>${{ "{:,.2f}".format(p.unit_price) }}</td>
+                                        <td>${{ "{:,.2f}".format(p.cost_price) }}</td>
+                                        <td class="text-center">
+                                            <div class="d-flex gap-2 justify-content-center">
+                                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editProductModal{{ p.id }}">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+                                                <form action="{{ url_for('inventory.delete_product', id=p.id) }}" method="POST" onsubmit="return confirm('Delete product {{ p.name }}?');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="bi bi-trash-fill"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Edit Product Modal -->
+                                    <div class="modal fade" id="editProductModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title fw-bold">Edit Product: {{ p.name }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form action="{{ url_for('inventory.edit_product', id=p.id) }}" method="POST">
+                                                    <div class="modal-body">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label text-muted">SKU Code</label>
+                                                                <input type="text" name="sku" class="form-control" value="{{ p.sku }}" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label text-muted">Product Name</label>
+                                                                <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label text-muted">Category</label>
+                                                                <input type="text" name="category" class="form-control" value="{{ p.category }}" required>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label text-muted">Stock Level</label>
+                                                                <input type="number" name="stock_level" class="form-control" value="{{ p.stock_level }}" required>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label text-muted">Reorder Point</label>
+                                                                <input type="number" name="reorder_point" class="form-control" value="{{ p.reorder_point }}" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label text-muted">Selling Price ($)</label>
+                                                                <input type="number" name="unit_price" class="form-control" step="0.01" value="{{ p.unit_price }}" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label text-muted">Cost Price ($)</label>
+                                                                <input type="number" name="cost_price" class="form-control" step="0.01" value="{{ p.cost_price }}" required>
+                                                            </div>
+                                                            <div class="col-12">
+                                                                <label class="form-label text-muted">Preferred Supplier</label>
+                                                                <select name="supplier_id" class="form-select">
+                                                                    <option value="">Choose Supplier...</option>
+                                                                    {% for s in suppliers %}
+                                                                        <option value="{{ s.id }}" {% if p.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                                                    {% endfor %}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary-gradient">Save Changes</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-5">No products found.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Suppliers -->
+        <div class="tab-pane fade" id="pills-suppliers" role="tabpanel">
+            <div class="d-flex justify-content-end mb-4">
+                <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addSupplierModal">
+                    <i class="bi bi-plus-lg"></i> Register Supplier
+                </button>
+            </div>
+            
+            <div class="analytics-panel">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 custom-table">
+                        <thead>
+                            <tr>
+                                <th>Supplier Code</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if suppliers %}
+                                {% for s in suppliers %}
+                                    <tr>
+                                        <td><code>{{ s.supplier_code }}</code></td>
+                                        <td class="fw-semibold">{{ s.name }}</td>
+                                        <td>{{ s.email }}</td>
+                                        <td>{{ s.phone or 'N/A' }}</td>
+                                        <td>{{ s.address or 'N/A' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-5">No suppliers registered yet.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Purchase Orders -->
+        <div class="tab-pane fade" id="pills-purchase" role="tabpanel">
+            <div class="d-flex justify-content-end mb-4">
+                <button type="button" class="btn btn-primary-gradient" data-bs-toggle="modal" data-bs-target="#addPOModal">
+                    <i class="bi bi-cart-plus-fill"></i> New Purchase Order
+                </button>
+            </div>
+
+            <div class="analytics-panel">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 custom-table">
+                        <thead>
+                            <tr>
+                                <th>PO Code</th>
+                                <th>Supplier</th>
+                                <th>Date Ordered</th>
+                                <th>Status</th>
+                                <th class="text-end">Cost Total</th>
+                                <th class="text-center" style="width: 150px;">Receive Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if purchase_orders %}
+                                {% for po in purchase_orders %}
+                                    <tr>
+                                        <td><code>{{ po.po_code }}</code></td>
+                                        <td>{{ po.supplier.name }}</td>
+                                        <td>{{ po.order_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            <span class="badge rounded-pill {% if po.status == 'Received' %}bg-success-subtle text-success{% else %}bg-warning-subtle text-warning{% endif %}">
+                                                {{ po.status }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-semibold">${{ "{:,.2f}".format(po.total_amount) }}</td>
+                                        <td class="text-center">
+                                            {% if po.status != 'Received' %}
+                                                <form action="{{ url_for('inventory.receive_purchase_order', id=po.id) }}" method="POST">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-check-circle-fill"></i> Receive
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <span class="text-muted small"><i class="bi bi-check-all"></i> Added to Stock</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-5">No Purchase Orders logged.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">New Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('inventory.add_product') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">SKU Code</label>
+                            <input type="text" name="sku" class="form-control" placeholder="SKU-XXX-01" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Product Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="Product Name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Category</label>
+                            <input type="text" name="category" class="form-control" placeholder="Electronics, Accessories" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Initial Stock</label>
+                            <input type="number" name="stock_level" class="form-control" value="0" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-muted">Reorder Point</label>
+                            <input type="number" name="reorder_point" class="form-control" value="10" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Selling Price ($)</label>
+                            <input type="number" name="unit_price" class="form-control" step="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted">Cost Price ($)</label>
+                            <input type="number" name="cost_price" class="form-control" step="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted">Preferred Supplier</label>
+                            <select name="supplier_id" class="form-select">
+                                <option value="">Choose Supplier...</option>
+                                {% for s in suppliers %}
+                                    <option value="{{ s.id }}">{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Create Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Supplier Modal -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Register Supplier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('inventory.add_supplier') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Supplier Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Email</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Phone</label>
+                        <input type="text" name="phone" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Address</label>
+                        <input type="text" name="address" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Save Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Purchase Order Modal -->
+<div class="modal fade" id="addPOModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Generate Procurement PO</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('inventory.add_purchase_order') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Select Supplier</label>
+                        <select name="supplier_id" class="form-select" required>
+                            <option value="">Choose Supplier...</option>
+                            {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.supplier_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">Line Items (Unit Cost Price will apply)</h6>
+                    <div id="po-rows-container">
+                        <div class="row g-2 mb-2 po-row">
+                            <div class="col-md-8">
+                                <select name="products[]" class="form-select" required>
+                                    <option value="">Select Product...</option>
+                                    {% for p in products %}
+                                        <option value="{{ p.id }}">{{ p.name }} (Cost: ${{ p.cost_price }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" name="quantities[]" class="form-control" min="1" placeholder="Quantity" value="1" required>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-outline-danger w-100" onclick="removePORow(this)"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addPORow()">
+                        <i class="bi bi-plus-lg"></i> Add Item Line
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary-gradient">Issue Purchase Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function addPORow() {
+        const container = document.getElementById('po-rows-container');
+        const firstRow = container.querySelector('.po-row');
+        const newRow = firstRow.cloneNode(true);
+        newRow.querySelector('select').selectedIndex = 0;
+        newRow.querySelector('input').value = 1;
+        container.appendChild(newRow);
+    }
+    
+    function removePORow(button) {
+        const container = document.getElementById('po-rows-container');
+        if (container.querySelectorAll('.po-row').length > 1) {
+            button.closest('.po-row').remove();
+        } else {
+            alert("At least one product line is required.");
+        }
+    }
+</script>
+{% endblock %}

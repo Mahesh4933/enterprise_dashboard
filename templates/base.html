@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Enterprise Dashboard{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Custom Style CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-cpu-fill"></i> Enterprise Analytics
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item">
+                <a href="{{ url_for('main.dashboard') }}" class="sidebar-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2-fill"></i> Dashboard
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('sales.index') }}" class="sidebar-link {% if 'sales.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-cart-fill"></i> Sales Management
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('customers.index') }}" class="sidebar-link {% if 'customers.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i> Customers
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('inventory.index') }}" class="sidebar-link {% if 'inventory.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-box-seam-fill"></i> Inventory & PO
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('finance.index') }}" class="sidebar-link {% if 'finance.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-cash-stack"></i> Finance Logs
+                </a>
+            </li>
+            {% if current_user.role in ['admin', 'manager'] %}
+            <li class="sidebar-item">
+                <a href="{{ url_for('employees.index') }}" class="sidebar-link {% if 'employees.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-person-workspace"></i> Employees
+                </a>
+            </li>
+            {% endif %}
+            <li class="sidebar-item">
+                <a href="{{ url_for('ml.index') }}" class="sidebar-link {% if 'ml.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-graph-up-arrow"></i> ML Predictions
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('reports.index') }}" class="sidebar-link {% if 'reports.' in request.endpoint %}active{% endif %}">
+                    <i class="bi bi-file-earmark-bar-graph"></i> Reports & Imports
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="{{ url_for('main.settings') }}" class="sidebar-link {% if request.endpoint == 'main.settings' %}active{% endif %}">
+                    <i class="bi bi-gear-fill"></i> Settings & Logs
+                </a>
+            </li>
+            <hr style="border-color: rgba(255,255,255,0.15)">
+            <li class="sidebar-item">
+                <a href="{{ url_for('auth.logout') }}" class="sidebar-link">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <main class="main-wrapper">
+        
+        <!-- Top Navbar -->
+        <header class="top-navbar">
+            <h4 class="mb-0 fw-bold text-gradient">{% block page_title %}Dashboard{% endblock %}</h4>
+            <div class="navbar-actions">
+                <!-- Theme Toggle -->
+                <button type="button" class="theme-toggle-btn" id="themeToggleBtn">
+                    <i class="bi bi-moon-fill"></i>
+                </button>
+                
+                <!-- Notification Bell -->
+                <div class="dropdown">
+                    <button class="btn btn-link position-relative p-0 text-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="markNotificationsRead()">
+                        <i class="bi bi-bell-fill fs-5"></i>
+                        {% block unread_badge %}{% endblock %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end p-2 border-0 shadow-lg" style="width: 320px; border-radius: 15px;">
+                        <li class="dropdown-header fw-bold">Recent System Alerts</li>
+                        <div id="notificationsList">
+                            {% block notifications_list %}{% endblock %}
+                        </div>
+                    </ul>
+                </div>
+
+                <!-- User Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle fs-5 me-1 align-middle"></i> {{ current_user.username }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 12px;">
+                        <li><a class="dropdown-item" href="{{ url_for('main.profile') }}"><i class="bi bi-person"></i> My Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.settings') }}"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show animate-fade-in" role="alert" style="border-radius: 12px;">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endblock %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Specific Content -->
+        {% block content %}{% endblock %}
+        
+    </main>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom UI script -->
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
